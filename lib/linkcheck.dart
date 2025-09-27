@@ -324,5 +324,17 @@ Future<int> run(List<String> arguments, Stdout stdout) async {
   if (withWarning > 0 || (showRedirects && withRedirects > 0)) return 1;
   return 0;
 }
+/// Takes input and makes it into a URL.
+String _sanitizeSeedUrl(String url) {
+  url = url.trim();
+  if (_portOnlyRegExp.hasMatch(url)) {
+    // From :4000 to http://localhost:4000/.
+    url = 'http://localhost$url/';
+  }
 
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    url = 'http://$url';
+  }
 
+  return url;
+}
