@@ -32,4 +32,131 @@ const version = '3.1.0';
 const versionFlag = 'version';
 final _portOnlyRegExp = RegExp(r'^:\d+$');
 
+void printStats(CrawlResult result, int broken, int withWarning, int withInfo,
+    int withRedirect, bool showRedirects, bool ansiTerm, Stdout stdout) {
+  // Redirect printing for better testing.
+  void print(Object object) => stdout.writeln(object);
+
+  final links = result.links;
+  final count = result.destinations.length;
+  final ignored = result.destinations
+      .where((destination) =>
+          destination.wasDeniedByRobotsTxt ||
+          destination.isUnsupportedScheme ||
+          (destination.isExternal && !destination.wasTried))
+      .length;
+  final leftUntried =
+      result.destinations.where((destination) => !destination.wasTried).length;
+  final checked = count - leftUntried;
+
+  if (ansiTerm) {
+    Console.write('\r');
+    Console.eraseLine(3);
+    final pen = TextPen();
+    if (links.isEmpty) {
+      var wasLocalhost = false;
+      if (result.destinations.isNotEmpty &&
+          !result.destinations.first.isInvalid &&
+          result.destinations.first.uri.host == 'localhost') {
+        wasLocalhost = true;
+      }
+      pen
+          .red()
+          .text('Error. ')
+          .normal()
+          .text("Couldn't connect or find any links.")
+          .text(wasLocalhost ? ' Have you started the server?' : '')
+          .print();
+    } else if (broken == 0 && withWarning == 0 && withInfo == 0) {
+      pen
+          .green()
+          .text('Perfect. ')
+          .normal()
+          .text('Checked ${links.length} links, $checked destination URLs')
+          .lightGray()
+          .text(ignored > 0 ? ' ($ignored ignored)' : '')
+          .normal()
+          .text(showRedirects && withRedirect > 0
+              ? withRedirect == 1
+                  ? ', 1 has redirect(s)'
+                  : ', $withRedirect have redirect(s)'
+              : '')
+          .text('.')
+          .print();
+    } else if (broken == 0 && withWarning == 0) {
+      pen
+          .cyan()
+          .text('Info. ')
+          .normal()
+          .text('Checked ${links.length} links, $checked destination URLs')
+          .lightGray()
+          .text(ignored > 0 ? ' ($ignored ignored)' : '')
+          .normal()
+          .text(', ')
+          .text(showRedirects && withRedirect > 0
+              ? withRedirect == 1
+                  ? '1 has redirect(s), '
+                  : '$withRedirect have redirect(s), '
+              : '')
+          .text('0 have warnings or errors')
+          .text(withInfo > 0 ? ', $withInfo have info' : '')
+          .text('.')
+          .print();
+    } else if (broken == 0) {
+      pen
+          .yellow()
+          .text('Warnings. ')
+          .normal()
+          .text('Checked ${links.length} links, $checked destination URLs')
+          .lightGray()
+          .text(ignored > 0 ? ' ($ignored ignored)' : '')
+          .normal()
+          .text(', ')
+          .text(showRedirects && withRedirect > 0
+              ? withRedirect == 1
+                  ? '1 has redirect(s), '
+                  : '$withRedirect have redirect(s), '
+              : '')
+          .text(withWarning == 1
+              ? '1 has a warning'
+              : '$withWarning have warnings')
+          .text(withInfo > 0 ? ', $withInfo have info' : '')
+          .text('.')
+          .print();
+    } else {
+      pen
+          .red()
+          .text('Errors. ')
+          .normal()
+          .text('Checked ${links.length} links, $checked destination URLs')
+          .lightGray()
+          .text(ignored > 0 ? ' ($ignored ignored)' : '')
+          .normal()
+          .text(', ')
+          .text(showRedirects && withRedirect > 0
+              ? withRedirect == 1
+                  ? '1 has redirect(s), '
+                  : '$withRedirect have redirect(s), '
+              : '')
+          .text(broken == 1 ? '1 has error(s), ' : '$broken have errors, ')
+          .text(withWarning == 1
+              ? '1 has warning(s)'
+              : '$withWarning have warnings')
+          .text(withInfo > 0 ? ', $withInfo have info' : '')
+          .text('.')
+          .print();
+    }
+  } else {
+    print('\nStats:');
+    print('${links.length.toString().padLeft(8)} links');
+    if (showRedirects) {
+      print('${withRedirect.toString().padLeft(8)} redirects');
+    }
+    print('${checked.toString().padLeft(8)} destination URLs');
+    print('${ignored.toString().padLeft(8)} URLs ignored');
+    print('${withWarning.toString().padLeft(8)} warnings');
+    print('${broken.toString().padLeft(8)} errors');
+  }
+}
+
 
