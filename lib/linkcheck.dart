@@ -160,3 +160,119 @@ void printStats(CrawlResult result, int broken, int withWarning, int withInfo,
 }
 
 
+/// Parses command-line [arguments] and runs the crawl.
+///
+/// Provide `dart:io` [Stdout] as the second argument for normal operation,
+/// or provide a mock for testing.
+Future<int> run(List<String> arguments, Stdout stdout) async {
+  // Redirect output to injected [stdout] for better testing.
+  void print(Object message) => stdout.writeln(message);
+
+  final parser = ArgParser(allowTrailingOptions: true)
+    ..addFlag(helpFlag,
+        abbr: 'h', negatable: false, help: 'Prints this usage help.')
+    ..addFlag(versionFlag, abbr: 'v', negatable: false, help: 'Prints version.')
+    ..addFlag(externalFlag,
+        abbr: 'e',
+        negatable: false,
+        help: 'Check external (remote) links, too. By '
+            'default, the tool only checks internal links.')
+    ..addFlag(redirectFlag,
+        help: 'Also report all links that point at a redirected URL.')
+    ..addFlag(anchorFlag,
+        help: 'Report links that point at a missing anchor.', defaultsTo: true)
+    ..addSeparator('Advanced')
+    ..addOption(inputFlag,
+        abbr: 'i',
+        help: 'Get list of URLs from the given text file (one URL per line).')
+    ..addOption(skipFlag,
+        help: 'Get list of URLs to skip from given text file (one RegExp '
+            'pattern per line).')
+    ..addMultiOption(hostsFlag,
+        splitCommas: true,
+        help: 'Paths to check. By default, the crawler '
+            "doesn't parse HTML on sites with different path than the seed"
+            'URIs. If your site spans multiple domains and you want to check '
+            'HTML everywhere, use this. Provide as a glob, e.g. '
+            'http://example.com/subdirectory/**.')
+    ..addFlag(ansiFlag,
+        help: 'Use ANSI terminal capabilities for nicer input. Turn this off '
+            'if the output is broken.',
+        defaultsTo: true)
+    ..addFlag(connectionFailuresAsWarnings,
+        help: 'Report connection failures as warnings rather than errors.')
+    ..addFlag(debugFlag,
+        abbr: 'd', negatable: false, help: 'Debug mode (very verbose).');
+
+  final argResults = parser.parse(arguments);
+
+  if (argResults[helpFlag] == true) {
+    print('Linkcheck will crawl given site and check links.\n');
+    print('usage: linkcheck [switches] [url]\n');
+    print(parser.usage);
+    return 0;
+  }
+
+  if (argResults[versionFlag] == true) {
+    print('linkcheck version $version');
+    return 0;
+  }
+
+  final ansiTerm = argResults[ansiFlag] == true && stdout.hasTerminal;
+  final reportConnectionFailuresAsWarnings =
+      argResults[connectionFailuresAsWarnings] == true;
+  final verbose = argResults[debugFlag] == true;
+  final shouldCheckExternal = argResults[externalFlag] == true;
+  final showRedirects = argResults[redirectFlag] == true;
+  final shouldCheckAnchors = argResults[anchorFlag] == true;
+  final inputFile = argResults[inputFlag] as String?;
+  final skipFile = argResults[skipFlag] as String?;
+
+  var urls = argResults.rest.toList();
+  var skipper = UrlSkipper.empty();
+
+  if (inputFile != null) {
+    final file = File(inputFile);
+    try {
+      urls.addAll(file.readAsLinesSync().where((url) => url.isNotEmpty));
+    } on FileSystemException catch (e) {
+      print("Can't read input file '$inputFile': $e");
+      return 2;
+    }
+  }
+
+  if (skipFile != null) {
+    final file = File(skipFile);
+    try {
+      skipper = UrlSkipper(file.path, file.readAsLinesSync());
+    } on FileSystemException catch (e) {
+      print("Can't read skip file '$skipFile': $e");
+      return 2;
+    }
+  }
+
+  urls = urls.map(_sanitizeSeedUrl).toList();
+
+  if (urls.isEmpty) {
+    print('No URL given, checking $defaultUrl');
+    urls.add(defaultUrl);
+  } else if (verbose) {
+    print('Reading URLs:');
+    urls.forEach(print);
+  }
+
+  // TODO: exit gracefully if provided URL isn't a parseable URI
+  final uris = urls.map((url) => Uri.parse(url)).toList(growable: false);
+  Set<String> hosts;
+  if ((argResults[hostsFlag] as Iterable<String>).isNotEmpty) {
+    hosts = Set<String>.from(argResults[hostsFlag] as Iterable<String>);
+  } else {
+    // No host globs provided. Using the default (http://example.com/**).
+    hosts = uris.map((uri) {
+      var url = uri.toString();
+      if (uri.path.isEmpty) return '$url/**';
+      if (uri.path == '/') return '$url**';
+      if (url.endsWith('/')) url = url.substring(0, url.length - 1);
+      return '$url**';
+    }).toSet();
+  }
