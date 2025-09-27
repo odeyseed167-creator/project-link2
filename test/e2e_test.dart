@@ -317,10 +317,5 @@ class _MockStdout implements Stdout {
     write(String.fromCharCode(charCode));
   }
 
-  @override
-  void writeln([Object? object]) {
-    object ??= '';
-    write(object);
-    write(lineTerminator);
-  }
+  
 }
