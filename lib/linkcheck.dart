@@ -231,48 +231,4 @@ Future<int> run(List<String> arguments, Stdout stdout) async {
   var urls = argResults.rest.toList();
   var skipper = UrlSkipper.empty();
 
-  if (inputFile != null) {
-    final file = File(inputFile);
-    try {
-      urls.addAll(file.readAsLinesSync().where((url) => url.isNotEmpty));
-    } on FileSystemException catch (e) {
-      print("Can't read input file '$inputFile': $e");
-      return 2;
-    }
-  }
-
-  if (skipFile != null) {
-    final file = File(skipFile);
-    try {
-      skipper = UrlSkipper(file.path, file.readAsLinesSync());
-    } on FileSystemException catch (e) {
-      print("Can't read skip file '$skipFile': $e");
-      return 2;
-    }
-  }
-
-  urls = urls.map(_sanitizeSeedUrl).toList();
-
-  if (urls.isEmpty) {
-    print('No URL given, checking $defaultUrl');
-    urls.add(defaultUrl);
-  } else if (verbose) {
-    print('Reading URLs:');
-    urls.forEach(print);
-  }
-
-  // TODO: exit gracefully if provided URL isn't a parseable URI
-  final uris = urls.map((url) => Uri.parse(url)).toList(growable: false);
-  Set<String> hosts;
-  if ((argResults[hostsFlag] as Iterable<String>).isNotEmpty) {
-    hosts = Set<String>.from(argResults[hostsFlag] as Iterable<String>);
-  } else {
-    // No host globs provided. Using the default (http://example.com/**).
-    hosts = uris.map((uri) {
-      var url = uri.toString();
-      if (uri.path.isEmpty) return '$url/**';
-      if (uri.path == '/') return '$url**';
-      if (url.endsWith('/')) url = url.substring(0, url.length - 1);
-      return '$url**';
-    }).toSet();
-  }
+  
