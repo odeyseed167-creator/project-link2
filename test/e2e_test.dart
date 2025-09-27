@@ -207,3 +207,120 @@ void main() {
   }, tags: ['integration']);
 }
 
+String directory = path.absolute(path.dirname(scriptPath));
+String scriptPath = scriptUri.toFilePath();
+
+Uri scriptUri = Platform.script;
+
+String getServingPath(int caseNumber) =>
+    path.join(directory, 'case$caseNumber');
+
+class _MockStdout implements Stdout {
+//  StreamController<List<int>> _controller = new StreamController();
+//  StreamSink<List<int>> _sink;
+
+  StringBuffer buf = StringBuffer();
+
+  @override
+  final Encoding encoding = const Utf8Codec();
+
+  _MockStdout() {
+//    _sink = _controller.sink;
+  }
+
+  @override
+  Never get done => throw UnimplementedError();
+
+  @override
+  set encoding(Encoding encoding) {
+    throw UnimplementedError();
+  }
+
+  @override
+  bool get hasTerminal => false;
+
+  @override
+  String get lineTerminator => '\n';
+
+  @override
+  set lineTerminator(String lineTerminator) => throw UnimplementedError();
+
+  @override
+  IOSink get nonBlocking {
+    throw UnimplementedError();
+  }
+
+  String get output => buf.toString();
+
+  @override
+  bool get supportsAnsiEscapes => false;
+
+  @override
+  int get terminalColumns => 80;
+
+  @override
+  int get terminalLines => 40;
+
+  @override
+  void add(List<int> data) {
+    throw UnimplementedError();
+//    _sink.add(data);
+  }
+
+  @override
+  Never addError(Object error, [StackTrace? stackTrace]) {
+    throw error;
+//    _sink.addError(error, stackTrace);
+  }
+
+  @override
+  Never addStream(Stream<List<int>> stream) => throw UnimplementedError();
+
+  void clearOutput() {
+    buf.clear();
+  }
+
+  @override
+  Future<void> close() async {
+//    await _sink.close();
+//    await _controller.close();
+  }
+
+  @override
+  Never flush() => throw UnimplementedError();
+
+  @override
+  void write(Object? object) {
+    final string = '$object';
+    buf.write(string);
+  }
+
+  @override
+  void writeAll(Iterable<dynamic> objects, [String sep = '']) {
+    final iterator = objects.iterator;
+    if (!iterator.moveNext()) return;
+    if (sep.isEmpty) {
+      do {
+        write(iterator.current);
+      } while (iterator.moveNext());
+    } else {
+      write(iterator.current);
+      while (iterator.moveNext()) {
+        write(sep);
+        write(iterator.current);
+      }
+    }
+  }
+
+  @override
+  void writeCharCode(int charCode) {
+    write(String.fromCharCode(charCode));
+  }
+
+  @override
+  void writeln([Object? object]) {
+    object ??= '';
+    write(object);
+    write(lineTerminator);
+  }
+}
